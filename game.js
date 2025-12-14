@@ -356,7 +356,7 @@ function checkArrowMonsterCollisions() {
 // Draw spider monster
 function drawMonster(monster) {
     const mx = monster.x - camera.x;
-    const my = monster.y - camera.y;
+    const my = monster.y - camera.y - 10; // Offset up 10px so spider isn't in ground
     const w = monster.width;
     const h = monster.height;
 
@@ -430,7 +430,7 @@ function drawMonster(monster) {
     const barWidth = 40;
     const barHeight = 4;
     const barX = monster.x - camera.x + (w - barWidth) / 2;
-    const barY = monster.y - camera.y - 8;
+    const barY = monster.y - camera.y - 18; // Adjusted for 10px offset
 
     // Background
     ctx.fillStyle = '#333';
@@ -537,7 +537,7 @@ function shootArrow() {
     const direction = player.facingRight ? 1 : -1;
     const arrow = {
         x: player.facingRight ? player.x + player.width : player.x - 15,
-        y: player.y + 46, // Shoot from chest height (10px lower)
+        y: player.y + 6, // Shoot from chest height
         velocityX: ARROW_SPEED * direction,
         velocityY: -3, // Initial upward velocity for arc
         width: 15,
