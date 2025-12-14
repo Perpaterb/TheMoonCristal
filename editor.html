@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TheMoonCristal - Level Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: monospace;
+            background: #2c3e50;
+            color: white;
+            display: flex;
+            height: 100vh;
+        }
+
+        #toolbar {
+            width: 250px;
+            background: #34495e;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        #toolbar h2 {
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .tool-section {
+            margin-bottom: 20px;
+        }
+
+        .tool-section h3 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: #bdc3c7;
+        }
+
+        .tool-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 5px;
+            border: 2px solid transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 12px;
+            text-align: left;
+        }
+
+        .tool-btn.active {
+            border-color: white;
+        }
+
+        .tool-btn.platform { background: #8B4513; }
+        .tool-btn.box { background: #4169E1; }
+        .tool-btn.ledge { background: #DAA520; }
+        .tool-btn.spike { background: #666666; }
+        .tool-btn.potion { background: #ff00ff; }
+        .tool-btn.start { background: #00ff00; color: black; }
+        .tool-btn.end { background: #ff0000; }
+        .tool-btn.delete { background: #c0392b; }
+        .tool-btn.select { background: #9b59b6; }
+
+        .size-input {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .size-input label {
+            font-size: 11px;
+        }
+
+        .size-input input {
+            width: 60px;
+            padding: 5px;
+            font-family: monospace;
+        }
+
+        #canvas-container {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            background: #1a252f;
+        }
+
+        #editorCanvas {
+            cursor: crosshair;
+        }
+
+        .action-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: monospace;
+            font-size: 12px;
+            background: #3498db;
+            color: white;
+        }
+
+        .action-btn:hover {
+            background: #2980b9;
+        }
+
+        .action-btn.danger {
+            background: #e74c3c;
+        }
+
+        .action-btn.danger:hover {
+            background: #c0392b;
+        }
+
+        #info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        #levelSize {
+            margin-bottom: 10px;
+        }
+
+        #levelSize input {
+            width: 80px;
+            padding: 5px;
+            margin-right: 5px;
+            font-family: monospace;
+        }
+
+        #exportArea {
+            width: 100%;
+            height: 150px;
+            font-family: monospace;
+            font-size: 10px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="toolbar">
+        <h2>Level Editor</h2>
+
+        <div class="tool-section">
+            <h3>Level Size</h3>
+            <div id="levelSize">
+                <input type="number" id="levelWidth" value="10000" placeholder="Width">
+                <input type="number" id="levelHeight" value="6000" placeholder="Height">
+                <button class="action-btn" onclick="resizeLevel()">Resize</button>
+            </div>
+        </div>
+
+        <div class="tool-section">
+            <h3>Tools</h3>
+            <button class="tool-btn select active" onclick="selectTool('select')">Select/Move</button>
+            <button class="tool-btn delete" onclick="selectTool('delete')">Delete</button>
+        </div>
+
+        <div class="tool-section">
+            <h3>Place Elements</h3>
+            <button class="tool-btn platform" onclick="selectTool('platform')">Platform (Brown)</button>
+            <button class="tool-btn box" onclick="selectTool('box')">Box (Blue)</button>
+            <button class="tool-btn ledge" onclick="selectTool('ledge')">Ledge (Yellow)</button>
+            <button class="tool-btn spike" onclick="selectTool('spike')">Spike (Black)</button>
+            <button class="tool-btn potion" onclick="selectTool('potion')">Potion (Purple)</button>
+            <button class="tool-btn start" onclick="selectTool('start')">Start Point</button>
+            <button class="tool-btn end" onclick="selectTool('end')">End Point</button>
+        </div>
+
+        <div class="tool-section">
+            <h3>Element Size</h3>
+            <div class="size-input">
+                <label>W: <input type="number" id="elementWidth" value="100"></label>
+                <label>H: <input type="number" id="elementHeight" value="100"></label>
+            </div>
+        </div>
+
+        <div class="tool-section">
+            <h3>Actions</h3>
+            <button class="action-btn" onclick="exportLevel()">Export Level</button>
+            <button class="action-btn" onclick="importLevel()">Import Level</button>
+            <button class="action-btn danger" onclick="clearLevel()">Clear All</button>
+        </div>
+
+        <div class="tool-section">
+            <h3>Export Code</h3>
+            <textarea id="exportArea" readonly></textarea>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="editorCanvas"></canvas>
+        <div id="info">
+            <div>Mouse: <span id="mousePos">0, 0</span></div>
+            <div>Zoom: <span id="zoomLevel">100%</span></div>
+            <div>Elements: <span id="elementCount">0</span></div>
+            <div>Controls: Scroll=Zoom, Middle/Right+Drag=Pan</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('editorCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvas-container');
+
+        // Level data
+        let levelWidth = 10000;
+        let levelHeight = 6000;
+        let elements = [];
+        let startPoint = { x: 100, y: 5800 };
+        let endPoint = { x: 9800, y: 100 };
+
+        // Editor state
+        let currentTool = 'select';
+        let camera = { x: 0, y: 0 };
+        let zoom = 0.1;
+        let isDragging = false;
+        let isPanning = false;
+        let isResizing = false;
+        let resizeHandle = null; // 'tl', 't', 'tr', 'l', 'r', 'bl', 'b', 'br' for corners and edges
+        let dragStart = { x: 0, y: 0 };
+        let selectedElement = null;
+        let dragOffset = { x: 0, y: 0 };
+        let resizeStart = { x: 0, y: 0, width: 0, height: 0 };
+        const HANDLE_SIZE = 8; // Size of resize handles in pixels
+        const EDGE_HANDLE_SIZE = 6; // Size of edge handles
+
+        // Resize canvas to fit container
+        function resizeCanvas() {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            draw();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Tool selection
+        function selectTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tool-btn.${tool}`).classList.add('active');
+            selectedElement = null;
+
+            // Set default sizes for different tools
+            if (tool === 'platform') {
+                document.getElementById('elementWidth').value = 200;
+                document.getElementById('elementHeight').value = 30;
+            } else if (tool === 'box') {
+                document.getElementById('elementWidth').value = 100;
+                document.getElementById('elementHeight').value = 100;
+            } else if (tool === 'ledge') {
+                document.getElementById('elementWidth').value = 150;
+                document.getElementById('elementHeight').value = 20;
+            } else if (tool === 'spike') {
+                document.getElementById('elementWidth').value = 60;
+                document.getElementById('elementHeight').value = 20;
+            } else if (tool === 'potion') {
+                document.getElementById('elementWidth').value = 15;
+                document.getElementById('elementHeight').value = 15;
+            }
+        }
+
+        // Convert screen to world coordinates
+        function screenToWorld(sx, sy) {
+            return {
+                x: (sx / zoom) + camera.x,
+                y: (sy / zoom) + camera.y
+            };
+        }
+
+        // Convert world to screen coordinates
+        function worldToScreen(wx, wy) {
+            return {
+                x: (wx - camera.x) * zoom,
+                y: (wy - camera.y) * zoom
+            };
+        }
+
+        // Check if point is over a resize handle of an element
+        function getHandleAtPoint(sx, sy, element) {
+            if (!element) return null;
+
+            const screen = worldToScreen(element.x, element.y);
+            const w = element.width * zoom;
+            const h = element.height * zoom;
+            const hs = HANDLE_SIZE;
+            const ehs = EDGE_HANDLE_SIZE;
+
+            // Check corner handles first (higher priority)
+            // Top-left
+            if (sx >= screen.x - hs/2 && sx <= screen.x + hs/2 &&
+                sy >= screen.y - hs/2 && sy <= screen.y + hs/2) {
+                return 'tl';
+            }
+            // Top-right
+            if (sx >= screen.x + w - hs/2 && sx <= screen.x + w + hs/2 &&
+                sy >= screen.y - hs/2 && sy <= screen.y + hs/2) {
+                return 'tr';
+            }
+            // Bottom-left
+            if (sx >= screen.x - hs/2 && sx <= screen.x + hs/2 &&
+                sy >= screen.y + h - hs/2 && sy <= screen.y + h + hs/2) {
+                return 'bl';
+            }
+            // Bottom-right
+            if (sx >= screen.x + w - hs/2 && sx <= screen.x + w + hs/2 &&
+                sy >= screen.y + h - hs/2 && sy <= screen.y + h + hs/2) {
+                return 'br';
+            }
+
+            // Check edge handles
+            // Top edge
+            if (sx >= screen.x + w/2 - ehs/2 && sx <= screen.x + w/2 + ehs/2 &&
+                sy >= screen.y - ehs/2 && sy <= screen.y + ehs/2) {
+                return 't';
+            }
+            // Bottom edge
+            if (sx >= screen.x + w/2 - ehs/2 && sx <= screen.x + w/2 + ehs/2 &&
+                sy >= screen.y + h - ehs/2 && sy <= screen.y + h + ehs/2) {
+                return 'b';
+            }
+            // Left edge
+            if (sx >= screen.x - ehs/2 && sx <= screen.x + ehs/2 &&
+                sy >= screen.y + h/2 - ehs/2 && sy <= screen.y + h/2 + ehs/2) {
+                return 'l';
+            }
+            // Right edge
+            if (sx >= screen.x + w - ehs/2 && sx <= screen.x + w + ehs/2 &&
+                sy >= screen.y + h/2 - ehs/2 && sy <= screen.y + h/2 + ehs/2) {
+                return 'r';
+            }
+
+            return null;
+        }
+
+        // Mouse events
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+            const world = screenToWorld(sx, sy);
+
+            if (e.button === 1 || e.button === 2) {
+                // Middle or right click - pan
+                isPanning = true;
+                dragStart = { x: e.clientX, y: e.clientY };
+                return;
+            }
+
+            if (currentTool === 'select') {
+                // First check if clicking on a resize handle of selected element
+                const handle = getHandleAtPoint(sx, sy, selectedElement);
+                if (handle) {
+                    isResizing = true;
+                    resizeHandle = handle;
+                    resizeStart = {
+                        x: selectedElement.x,
+                        y: selectedElement.y,
+                        width: selectedElement.width,
+                        height: selectedElement.height
+                    };
+                    dragStart = { x: world.x, y: world.y };
+                } else {
+                    // Find element under cursor
+                    selectedElement = null;
+                    for (let i = elements.length - 1; i >= 0; i--) {
+                        const el = elements[i];
+                        if (world.x >= el.x && world.x <= el.x + el.width &&
+                            world.y >= el.y && world.y <= el.y + el.height) {
+                            selectedElement = el;
+                            dragOffset = { x: world.x - el.x, y: world.y - el.y };
+                            isDragging = true;
+                            break;
+                        }
+                    }
+                }
+            } else if (currentTool === 'delete') {
+                // Delete element under cursor
+                for (let i = elements.length - 1; i >= 0; i--) {
+                    const el = elements[i];
+                    if (world.x >= el.x && world.x <= el.x + el.width &&
+                        world.y >= el.y && world.y <= el.y + el.height) {
+                        elements.splice(i, 1);
+                        break;
+                    }
+                }
+            } else if (currentTool === 'start') {
+                startPoint = { x: world.x, y: world.y };
+            } else if (currentTool === 'end') {
+                endPoint = { x: world.x, y: world.y };
+            } else {
+                // Place new element
+                const width = parseInt(document.getElementById('elementWidth').value) || 100;
+                const height = parseInt(document.getElementById('elementHeight').value) || 100;
+
+                const element = {
+                    type: currentTool,
+                    x: Math.round(world.x - width / 2),
+                    y: Math.round(world.y - height / 2),
+                    width: width,
+                    height: height
+                };
+
+                elements.push(element);
+            }
+
+            draw();
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+            const world = screenToWorld(sx, sy);
+
+            document.getElementById('mousePos').textContent =
+                `${Math.round(world.x)}, ${Math.round(world.y)}`;
+
+            if (isPanning) {
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+                camera.x -= dx / zoom;
+                camera.y -= dy / zoom;
+                dragStart = { x: e.clientX, y: e.clientY };
+                draw();
+            } else if (isResizing && selectedElement) {
+                const dx = world.x - dragStart.x;
+                const dy = world.y - dragStart.y;
+
+                // Resize based on which handle is being dragged
+                if (resizeHandle === 'br') {
+                    // Bottom-right: just change width and height
+                    selectedElement.width = Math.max(10, Math.round(resizeStart.width + dx));
+                    selectedElement.height = Math.max(10, Math.round(resizeStart.height + dy));
+                } else if (resizeHandle === 'bl') {
+                    // Bottom-left: change x, width, and height
+                    const newWidth = Math.max(10, Math.round(resizeStart.width - dx));
+                    selectedElement.x = Math.round(resizeStart.x + resizeStart.width - newWidth);
+                    selectedElement.width = newWidth;
+                    selectedElement.height = Math.max(10, Math.round(resizeStart.height + dy));
+                } else if (resizeHandle === 'tr') {
+                    // Top-right: change y, width, and height
+                    const newHeight = Math.max(10, Math.round(resizeStart.height - dy));
+                    selectedElement.y = Math.round(resizeStart.y + resizeStart.height - newHeight);
+                    selectedElement.height = newHeight;
+                    selectedElement.width = Math.max(10, Math.round(resizeStart.width + dx));
+                } else if (resizeHandle === 'tl') {
+                    // Top-left: change x, y, width, and height
+                    const newWidth = Math.max(10, Math.round(resizeStart.width - dx));
+                    const newHeight = Math.max(10, Math.round(resizeStart.height - dy));
+                    selectedElement.x = Math.round(resizeStart.x + resizeStart.width - newWidth);
+                    selectedElement.y = Math.round(resizeStart.y + resizeStart.height - newHeight);
+                    selectedElement.width = newWidth;
+                    selectedElement.height = newHeight;
+                } else if (resizeHandle === 't') {
+                    // Top edge: change y and height
+                    const newHeight = Math.max(10, Math.round(resizeStart.height - dy));
+                    selectedElement.y = Math.round(resizeStart.y + resizeStart.height - newHeight);
+                    selectedElement.height = newHeight;
+                } else if (resizeHandle === 'b') {
+                    // Bottom edge: change height
+                    selectedElement.height = Math.max(10, Math.round(resizeStart.height + dy));
+                } else if (resizeHandle === 'l') {
+                    // Left edge: change x and width
+                    const newWidth = Math.max(10, Math.round(resizeStart.width - dx));
+                    selectedElement.x = Math.round(resizeStart.x + resizeStart.width - newWidth);
+                    selectedElement.width = newWidth;
+                } else if (resizeHandle === 'r') {
+                    // Right edge: change width
+                    selectedElement.width = Math.max(10, Math.round(resizeStart.width + dx));
+                }
+                draw();
+            } else if (isDragging && selectedElement) {
+                selectedElement.x = Math.round(world.x - dragOffset.x);
+                selectedElement.y = Math.round(world.y - dragOffset.y);
+                draw();
+            }
+
+            // Update cursor based on handle hover
+            if (currentTool === 'select' && selectedElement) {
+                const handle = getHandleAtPoint(sx, sy, selectedElement);
+                if (handle === 'tl' || handle === 'br') {
+                    canvas.style.cursor = 'nwse-resize';
+                } else if (handle === 'tr' || handle === 'bl') {
+                    canvas.style.cursor = 'nesw-resize';
+                } else if (handle === 't' || handle === 'b') {
+                    canvas.style.cursor = 'ns-resize';
+                } else if (handle === 'l' || handle === 'r') {
+                    canvas.style.cursor = 'ew-resize';
+                } else {
+                    canvas.style.cursor = 'crosshair';
+                }
+            } else {
+                canvas.style.cursor = 'crosshair';
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            isPanning = false;
+            isResizing = false;
+            resizeHandle = null;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDragging = false;
+            isPanning = false;
+            isResizing = false;
+            resizeHandle = null;
+        });
+
+        // Zoom with scroll wheel
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+
+            const worldBefore = screenToWorld(sx, sy);
+
+            if (e.deltaY < 0) {
+                zoom *= 1.1;
+            } else {
+                zoom *= 0.9;
+            }
+            zoom = Math.max(0.02, Math.min(2, zoom));
+
+            const worldAfter = screenToWorld(sx, sy);
+            camera.x += worldBefore.x - worldAfter.x;
+            camera.y += worldBefore.y - worldAfter.y;
+
+            document.getElementById('zoomLevel').textContent = Math.round(zoom * 100) + '%';
+            draw();
+        });
+
+        // Prevent context menu
+        canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Draw everything
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background
+            ctx.fillStyle = '#87ceeb';
+            const topLeft = worldToScreen(0, 0);
+            const size = {
+                w: levelWidth * zoom,
+                h: levelHeight * zoom
+            };
+            ctx.fillRect(topLeft.x, topLeft.y, size.w, size.h);
+
+            // Draw grid
+            ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+            ctx.lineWidth = 1;
+            const gridSize = 500;
+            for (let x = 0; x <= levelWidth; x += gridSize) {
+                const screen = worldToScreen(x, 0);
+                ctx.beginPath();
+                ctx.moveTo(screen.x, topLeft.y);
+                ctx.lineTo(screen.x, topLeft.y + size.h);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= levelHeight; y += gridSize) {
+                const screen = worldToScreen(0, y);
+                ctx.beginPath();
+                ctx.moveTo(topLeft.x, screen.y);
+                ctx.lineTo(topLeft.x + size.w, screen.y);
+                ctx.stroke();
+            }
+
+            // Draw elements
+            for (let el of elements) {
+                const screen = worldToScreen(el.x, el.y);
+                const w = el.width * zoom;
+                const h = el.height * zoom;
+
+                // Set color based on type
+                if (el.type === 'platform') ctx.fillStyle = '#8B4513';
+                else if (el.type === 'box') ctx.fillStyle = '#4169E1';
+                else if (el.type === 'ledge') ctx.fillStyle = '#DAA520';
+                else if (el.type === 'spike') ctx.fillStyle = '#666666';
+                else if (el.type === 'potion') ctx.fillStyle = '#ff00ff';
+
+                ctx.fillRect(screen.x, screen.y, w, h);
+
+                // Draw border
+                ctx.strokeStyle = el === selectedElement ? '#fff' : '#000';
+                ctx.lineWidth = el === selectedElement ? 3 : 1;
+                ctx.strokeRect(screen.x, screen.y, w, h);
+
+                // Draw resize handles for selected element
+                if (el === selectedElement) {
+                    const hs = HANDLE_SIZE;
+                    const ehs = EDGE_HANDLE_SIZE;
+                    ctx.fillStyle = '#fff';
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 1;
+
+                    // Corner handles
+                    // Top-left handle
+                    ctx.fillRect(screen.x - hs/2, screen.y - hs/2, hs, hs);
+                    ctx.strokeRect(screen.x - hs/2, screen.y - hs/2, hs, hs);
+
+                    // Top-right handle
+                    ctx.fillRect(screen.x + w - hs/2, screen.y - hs/2, hs, hs);
+                    ctx.strokeRect(screen.x + w - hs/2, screen.y - hs/2, hs, hs);
+
+                    // Bottom-left handle
+                    ctx.fillRect(screen.x - hs/2, screen.y + h - hs/2, hs, hs);
+                    ctx.strokeRect(screen.x - hs/2, screen.y + h - hs/2, hs, hs);
+
+                    // Bottom-right handle
+                    ctx.fillRect(screen.x + w - hs/2, screen.y + h - hs/2, hs, hs);
+                    ctx.strokeRect(screen.x + w - hs/2, screen.y + h - hs/2, hs, hs);
+
+                    // Edge handles
+                    // Top edge
+                    ctx.fillRect(screen.x + w/2 - ehs/2, screen.y - ehs/2, ehs, ehs);
+                    ctx.strokeRect(screen.x + w/2 - ehs/2, screen.y - ehs/2, ehs, ehs);
+
+                    // Bottom edge
+                    ctx.fillRect(screen.x + w/2 - ehs/2, screen.y + h - ehs/2, ehs, ehs);
+                    ctx.strokeRect(screen.x + w/2 - ehs/2, screen.y + h - ehs/2, ehs, ehs);
+
+                    // Left edge
+                    ctx.fillRect(screen.x - ehs/2, screen.y + h/2 - ehs/2, ehs, ehs);
+                    ctx.strokeRect(screen.x - ehs/2, screen.y + h/2 - ehs/2, ehs, ehs);
+
+                    // Right edge
+                    ctx.fillRect(screen.x + w - ehs/2, screen.y + h/2 - ehs/2, ehs, ehs);
+                    ctx.strokeRect(screen.x + w - ehs/2, screen.y + h/2 - ehs/2, ehs, ehs);
+                }
+            }
+
+            // Draw start point
+            const startScreen = worldToScreen(startPoint.x, startPoint.y);
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(startScreen.x, startScreen.y, 10 * zoom, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Draw end point
+            const endScreen = worldToScreen(endPoint.x, endPoint.y);
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(endScreen.x, endScreen.y, 10 * zoom, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+
+            // Update element count
+            document.getElementById('elementCount').textContent = elements.length;
+        }
+
+        // Resize level
+        function resizeLevel() {
+            levelWidth = parseInt(document.getElementById('levelWidth').value) || 10000;
+            levelHeight = parseInt(document.getElementById('levelHeight').value) || 6000;
+            draw();
+        }
+
+        // Clear all elements
+        function clearLevel() {
+            if (confirm('Are you sure you want to clear all elements?')) {
+                elements = [];
+                startPoint = { x: 100, y: levelHeight - 200 };
+                endPoint = { x: levelWidth - 200, y: 100 };
+                draw();
+            }
+        }
+
+        // Export level to JSON
+        function exportLevel() {
+            const platforms = elements.filter(e => e.type === 'platform' || e.type === 'box' || e.type === 'ledge');
+            const spikes = elements.filter(e => e.type === 'spike');
+            const potions = elements.filter(e => e.type === 'potion');
+
+            const levelData = {
+                width: levelWidth,
+                height: levelHeight,
+                playerStart: {
+                    x: Math.round(startPoint.x),
+                    y: Math.round(startPoint.y)
+                },
+                endPoint: {
+                    x: Math.round(endPoint.x),
+                    y: Math.round(endPoint.y),
+                    width: 30,
+                    height: 30
+                },
+                platforms: platforms.map(el => {
+                    let color = '#8B4513';
+                    let solid = true;
+                    if (el.type === 'box') color = '#4169E1';
+                    if (el.type === 'ledge') { color = '#DAA520'; solid = false; }
+
+                    return {
+                        x: Math.round(el.x),
+                        y: Math.round(el.y),
+                        width: el.width,
+                        height: el.height,
+                        color: color,
+                        solid: solid
+                    };
+                }),
+                spikes: spikes.map(el => ({
+                    x: Math.round(el.x),
+                    y: Math.round(el.y),
+                    width: el.width,
+                    height: el.height
+                })),
+                healthPotions: potions.map(el => ({
+                    x: Math.round(el.x),
+                    y: Math.round(el.y),
+                    width: el.width,
+                    height: el.height,
+                    collected: false
+                }))
+            };
+
+            const jsonString = JSON.stringify(levelData, null, 2);
+            document.getElementById('exportArea').value = jsonString;
+
+            // Also copy to clipboard
+            navigator.clipboard.writeText(jsonString).then(() => {
+                alert('Level JSON exported and copied to clipboard!\n\nSave this as levels/1.json (or 2.json, etc.)');
+            }).catch(() => {
+                alert('Level JSON exported! Copy it from the text area and save as levels/1.json');
+            });
+        }
+
+        // Import level from code
+        function importLevel() {
+            const code = prompt('Paste level data (JSON format):');
+            if (!code) return;
+
+            try {
+                // Try to parse as JSON or extract from code
+                let data;
+                if (code.includes('mazeData')) {
+                    // Extract object from code
+                    const match = code.match(/\{[\s\S]*\}/);
+                    if (match) {
+                        data = eval('(' + match[0] + ')');
+                    }
+                } else {
+                    data = JSON.parse(code);
+                }
+
+                if (data) {
+                    levelWidth = data.width || 10000;
+                    levelHeight = data.height || 6000;
+                    document.getElementById('levelWidth').value = levelWidth;
+                    document.getElementById('levelHeight').value = levelHeight;
+
+                    if (data.playerStart) {
+                        startPoint = data.playerStart;
+                    }
+
+                    elements = [];
+
+                    if (data.platforms) {
+                        for (let p of data.platforms) {
+                            let type = 'platform';
+                            if (p.color === '#4169E1') type = 'box';
+                            else if (p.color === '#DAA520' || !p.solid) type = 'ledge';
+
+                            elements.push({
+                                type: type,
+                                x: p.x,
+                                y: p.y,
+                                width: p.width,
+                                height: p.height
+                            });
+                        }
+                    }
+
+                    if (data.spikes) {
+                        for (let s of data.spikes) {
+                            elements.push({
+                                type: 'spike',
+                                x: s.x,
+                                y: s.y,
+                                width: s.width,
+                                height: s.height
+                            });
+                        }
+                    }
+
+                    if (data.healthPotions) {
+                        for (let p of data.healthPotions) {
+                            elements.push({
+                                type: 'potion',
+                                x: p.x,
+                                y: p.y,
+                                width: p.width,
+                                height: p.height
+                            });
+                        }
+                    }
+
+                    draw();
+                    alert('Level imported successfully!');
+                }
+            } catch (e) {
+                alert('Error importing level: ' + e.message);
+            }
+        }
+
+        // Initial draw
+        draw();
+    </script>
+</body>
+</html>
