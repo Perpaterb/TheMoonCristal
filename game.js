@@ -52,6 +52,20 @@ const camera = {
     y: 0
 };
 
+// Center camera on a specific point (used for start point)
+function centerCameraOn(x, y) {
+    const level = getCurrentLevel();
+    if (!level) return;
+
+    // Center camera on the given position
+    camera.x = x - canvas.width / 2;
+    camera.y = y - canvas.height / 2;
+
+    // Clamp camera to level bounds
+    camera.x = Math.max(0, Math.min(camera.x, level.width - canvas.width));
+    camera.y = Math.max(0, Math.min(camera.y, level.height - canvas.height));
+}
+
 // Current level
 let currentLevelNum = 1;
 let currentLevel = null;
@@ -85,21 +99,16 @@ async function initGame() {
     console.log('Level loaded:', currentLevel);
     console.log('Player start:', currentLevel.playerStart);
 
-    // Set player starting position
+    // Set player starting position from level's start point
     player.x = currentLevel.playerStart.x;
     player.y = currentLevel.playerStart.y;
 
     levelsLoaded = true;
 
-    // Initialize camera centered on player
-    camera.x = player.x - canvas.width / 2;
-    camera.y = player.y - canvas.height / 2;
+    // Center camera on start point
+    centerCameraOn(currentLevel.playerStart.x, currentLevel.playerStart.y);
 
-    // Clamp camera to level bounds
-    camera.x = Math.max(0, Math.min(camera.x, currentLevel.width - canvas.width));
-    camera.y = Math.max(0, Math.min(camera.y, currentLevel.height - canvas.height));
-
-    console.log('Camera initialized:', camera.x, camera.y);
+    console.log('Camera centered on start point:', camera.x, camera.y);
     console.log('Player position:', player.x, player.y);
 
     // Start game loop
@@ -211,10 +220,8 @@ function checkExits() {
             player.velocityX = 0;
             player.velocityY = 0;
 
-            // Reset camera for new level
-            camera.x = 0;
-            camera.y = 0;
-            updateCamera();
+            // Center camera on spawn point for new level
+            centerCameraOn(exit.spawnX, exit.spawnY);
             break;
         }
     }
@@ -275,10 +282,8 @@ async function restartGame() {
     player.wasInAir = false;
     arrows.length = 0;
 
-    // Reset camera
-    camera.x = 0;
-    camera.y = 0;
-    updateCamera();
+    // Center camera on start point
+    centerCameraOn(currentLevel.playerStart.x, currentLevel.playerStart.y);
 }
 
 // Damage player function
