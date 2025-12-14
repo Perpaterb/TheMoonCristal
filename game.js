@@ -207,9 +207,12 @@ function initMonsters() {
         patrolMaxX: m.patrolMaxX,
         patrolDir: 1, // 1 = right, -1 = left
         onGround: false,
+        wasInAir: false, // Track if monster was in air (for landing detection)
         facingRight: true,
         isChasing: false,
         knockbackTimer: 0,
+        jumpCooldown: 0, // 3 second cooldown between jumps
+        landingPause: 0, // 0.7 second pause after landing
         animFrame: 0,
         animTimer: 0
     }));
@@ -223,10 +226,24 @@ function updateMonsters() {
     for (let i = monsters.length - 1; i >= 0; i--) {
         const monster = monsters[i];
 
-        // Skip if in knockback
+        // Decrement timers
+        if (monster.jumpCooldown > 0) monster.jumpCooldown--;
+        if (monster.landingPause > 0) monster.landingPause--;
+        if (monster.knockbackTimer > 0) monster.knockbackTimer--;
+
+        // Detect landing (was in air, now on ground)
+        if (monster.wasInAir && monster.onGround) {
+            monster.landingPause = 42; // 0.7 seconds at 60fps
+        }
+        monster.wasInAir = !monster.onGround;
+
+        // Skip movement if in knockback
         if (monster.knockbackTimer > 0) {
-            monster.knockbackTimer--;
             monster.velocityX *= 0.8; // Friction during knockback
+        }
+        // Skip movement if in landing pause (stand still)
+        else if (monster.landingPause > 0) {
+            monster.velocityX = 0;
         } else {
             // Check distance to player
             const dx = player.x - monster.x;
@@ -246,10 +263,11 @@ function updateMonsters() {
                     monster.velocityX = 0;
                 }
 
-                // Jump if player is above and monster is on ground
-                if (dy < -50 && monster.onGround) {
+                // Jump if player is above and monster is on ground (with cooldown)
+                if (dy < -50 && monster.onGround && monster.jumpCooldown === 0) {
                     monster.velocityY = MONSTER_JUMP_STRENGTH;
                     monster.onGround = false;
+                    monster.jumpCooldown = 180; // 3 second cooldown
                 }
             } else {
                 // Patrol mode
@@ -262,6 +280,13 @@ function updateMonsters() {
                     monster.patrolDir = 1;
                 } else if (monster.x + monster.width >= monster.patrolMaxX) {
                     monster.patrolDir = -1;
+                }
+
+                // Random jump while patrolling (with cooldown)
+                if (monster.onGround && monster.jumpCooldown === 0 && Math.random() < 0.005) {
+                    monster.velocityY = MONSTER_JUMP_STRENGTH;
+                    monster.onGround = false;
+                    monster.jumpCooldown = 180; // 3 second cooldown
                 }
             }
         }
