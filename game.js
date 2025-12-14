@@ -177,12 +177,19 @@ const SHOOTING_DURATION = 400; // ms to show shooting animation (enough for all 
 // Arrows array
 const arrows = [];
 
-// Monster constants
+// Monster constants - Spider
 const MONSTER_SPEED = 2;
 const MONSTER_JUMP_STRENGTH = -10;
 const MONSTER_DETECTION_RANGE = 600;
 const MONSTER_KNOCKBACK = 8;
 const MONSTER_MAX_HEALTH = 3;
+
+// Monster constants - Slime (blue, bigger, slower, more health, jumps higher)
+const SLIME_SPEED = 1.5;
+const SLIME_JUMP_STRENGTH = -20; // 2x jump height
+const SLIME_MAX_HEALTH = 10;
+const SLIME_WIDTH = 60;
+const SLIME_HEIGHT = 50;
 
 // Active monsters array (populated from level data)
 let monsters = [];
@@ -195,27 +202,34 @@ function initMonsters() {
         return;
     }
 
-    monsters = level.monsters.map(m => ({
-        x: m.x,
-        y: m.y,
-        width: 50,
-        height: 40,
-        velocityX: 0,
-        velocityY: 0,
-        health: MONSTER_MAX_HEALTH,
-        patrolMinX: m.patrolMinX,
-        patrolMaxX: m.patrolMaxX,
-        patrolDir: 1, // 1 = right, -1 = left
-        onGround: false,
-        wasInAir: false, // Track if monster was in air (for landing detection)
-        facingRight: true,
-        isChasing: false,
-        knockbackTimer: 0,
-        jumpCooldown: 0, // 3 second cooldown between jumps
-        landingPause: 0, // 0.7 second pause after landing
-        animFrame: 0,
-        animTimer: 0
-    }));
+    monsters = level.monsters.map(m => {
+        const isSlime = m.type === 'slime';
+        return {
+            x: m.x,
+            y: m.y,
+            type: m.type || 'spider', // Default to spider
+            width: isSlime ? SLIME_WIDTH : 50,
+            height: isSlime ? SLIME_HEIGHT : 40,
+            velocityX: 0,
+            velocityY: 0,
+            health: isSlime ? SLIME_MAX_HEALTH : MONSTER_MAX_HEALTH,
+            maxHealth: isSlime ? SLIME_MAX_HEALTH : MONSTER_MAX_HEALTH,
+            speed: isSlime ? SLIME_SPEED : MONSTER_SPEED,
+            jumpStrength: isSlime ? SLIME_JUMP_STRENGTH : MONSTER_JUMP_STRENGTH,
+            patrolMinX: m.patrolMinX,
+            patrolMaxX: m.patrolMaxX,
+            patrolDir: 1, // 1 = right, -1 = left
+            onGround: false,
+            wasInAir: false, // Track if monster was in air (for landing detection)
+            facingRight: true,
+            isChasing: false,
+            knockbackTimer: 0,
+            jumpCooldown: 0, // 3 second cooldown between jumps
+            landingPause: 0, // 0.7 second pause after landing
+            animFrame: 0,
+            animTimer: 0
+        };
+    });
 }
 
 // Update all monsters
@@ -254,10 +268,10 @@ function updateMonsters() {
                 // Chase player
                 monster.isChasing = true;
                 if (dx > 10) {
-                    monster.velocityX = MONSTER_SPEED;
+                    monster.velocityX = monster.speed;
                     monster.facingRight = true;
                 } else if (dx < -10) {
-                    monster.velocityX = -MONSTER_SPEED;
+                    monster.velocityX = -monster.speed;
                     monster.facingRight = false;
                 } else {
                     monster.velocityX = 0;
@@ -265,14 +279,14 @@ function updateMonsters() {
 
                 // Jump if player is above and monster is on ground (with cooldown)
                 if (dy < -50 && monster.onGround && monster.jumpCooldown === 0) {
-                    monster.velocityY = MONSTER_JUMP_STRENGTH;
+                    monster.velocityY = monster.jumpStrength;
                     monster.onGround = false;
                     monster.jumpCooldown = 180; // 3 second cooldown
                 }
             } else {
                 // Patrol mode
                 monster.isChasing = false;
-                monster.velocityX = MONSTER_SPEED * monster.patrolDir;
+                monster.velocityX = monster.speed * monster.patrolDir;
                 monster.facingRight = monster.patrolDir > 0;
 
                 // Reverse direction at patrol bounds
@@ -284,7 +298,7 @@ function updateMonsters() {
 
                 // Random jump while patrolling (with cooldown)
                 if (monster.onGround && monster.jumpCooldown === 0 && Math.random() < 0.005) {
-                    monster.velocityY = MONSTER_JUMP_STRENGTH;
+                    monster.velocityY = monster.jumpStrength;
                     monster.onGround = false;
                     monster.jumpCooldown = 180; // 3 second cooldown
                 }
@@ -378,10 +392,10 @@ function checkArrowMonsterCollisions() {
     }
 }
 
-// Draw spider monster
+// Draw monster (spider or slime)
 function drawMonster(monster) {
     const mx = monster.x - camera.x;
-    const my = monster.y - camera.y - 10; // Offset up 10px so spider isn't in ground
+    const my = monster.y - camera.y - 10; // Offset up 10px so monster isn't in ground
     const w = monster.width;
     const h = monster.height;
 
@@ -396,63 +410,95 @@ function drawMonster(monster) {
         ctx.translate(mx, my);
     }
 
-    // Flash red if recently hit
+    // Flash when recently hit
     if (monster.knockbackTimer > 0) {
         ctx.globalAlpha = 0.7;
     }
 
-    // Spider body (oval)
-    ctx.fillStyle = '#2d2d2d';
-    ctx.beginPath();
-    ctx.ellipse(w / 2, h / 2 + 5, w / 3, h / 3, 0, 0, Math.PI * 2);
-    ctx.fill();
+    if (monster.type === 'slime') {
+        // Draw slime (blue blob)
+        const squish = Math.sin(monster.animFrame * Math.PI / 2) * 3;
 
-    // Spider head
-    ctx.beginPath();
-    ctx.ellipse(w * 0.75, h / 2, w / 5, h / 4, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eyes (red when chasing)
-    ctx.fillStyle = monster.isChasing ? '#ff0000' : '#880000';
-    ctx.beginPath();
-    ctx.arc(w * 0.8, h / 2 - 3, 3, 0, Math.PI * 2);
-    ctx.arc(w * 0.8, h / 2 + 3, 3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Legs (animated)
-    ctx.strokeStyle = '#2d2d2d';
-    ctx.lineWidth = 3;
-    const legOffset = Math.sin(monster.animFrame * Math.PI / 2) * 3;
-
-    // Left side legs
-    for (let i = 0; i < 4; i++) {
-        const baseX = w * 0.3 + i * 5;
-        const baseY = h / 2 + 5;
-        const offset = (i % 2 === 0) ? legOffset : -legOffset;
-
+        // Slime body
+        ctx.fillStyle = '#4169E1'; // Royal blue
         ctx.beginPath();
-        ctx.moveTo(baseX, baseY);
-        ctx.lineTo(baseX - 15, baseY + 15 + offset);
-        ctx.lineTo(baseX - 20, baseY + 25 + offset);
-        ctx.stroke();
-    }
+        ctx.ellipse(w / 2, h / 2 + 5 + squish, w / 2.2, h / 2.5 - squish / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
 
-    // Right side legs
-    for (let i = 0; i < 4; i++) {
-        const baseX = w * 0.3 + i * 5;
-        const baseY = h / 2 + 5;
-        const offset = (i % 2 === 0) ? -legOffset : legOffset;
-
+        // Slime highlight
+        ctx.fillStyle = '#6B8DD6';
         ctx.beginPath();
-        ctx.moveTo(baseX, baseY);
-        ctx.lineTo(baseX + 15, baseY + 15 + offset);
-        ctx.lineTo(baseX + 20, baseY + 25 + offset);
-        ctx.stroke();
+        ctx.ellipse(w / 2 - 5, h / 2 - 5 + squish, w / 6, h / 6, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eyes
+        ctx.fillStyle = monster.isChasing ? '#ff0000' : '#ffffff';
+        ctx.beginPath();
+        ctx.arc(w * 0.35, h / 2 + squish, 5, 0, Math.PI * 2);
+        ctx.arc(w * 0.65, h / 2 + squish, 5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Pupils
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(w * 0.37, h / 2 + 1 + squish, 2, 0, Math.PI * 2);
+        ctx.arc(w * 0.67, h / 2 + 1 + squish, 2, 0, Math.PI * 2);
+        ctx.fill();
+    } else {
+        // Draw spider
+        // Spider body (oval)
+        ctx.fillStyle = '#2d2d2d';
+        ctx.beginPath();
+        ctx.ellipse(w / 2, h / 2 + 5, w / 3, h / 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Spider head
+        ctx.beginPath();
+        ctx.ellipse(w * 0.75, h / 2, w / 5, h / 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Eyes (red when chasing)
+        ctx.fillStyle = monster.isChasing ? '#ff0000' : '#880000';
+        ctx.beginPath();
+        ctx.arc(w * 0.8, h / 2 - 3, 3, 0, Math.PI * 2);
+        ctx.arc(w * 0.8, h / 2 + 3, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Legs (animated)
+        ctx.strokeStyle = '#2d2d2d';
+        ctx.lineWidth = 3;
+        const legOffset = Math.sin(monster.animFrame * Math.PI / 2) * 3;
+
+        // Left side legs
+        for (let i = 0; i < 4; i++) {
+            const baseX = w * 0.3 + i * 5;
+            const baseY = h / 2 + 5;
+            const offset = (i % 2 === 0) ? legOffset : -legOffset;
+
+            ctx.beginPath();
+            ctx.moveTo(baseX, baseY);
+            ctx.lineTo(baseX - 15, baseY + 15 + offset);
+            ctx.lineTo(baseX - 20, baseY + 25 + offset);
+            ctx.stroke();
+        }
+
+        // Right side legs
+        for (let i = 0; i < 4; i++) {
+            const baseX = w * 0.3 + i * 5;
+            const baseY = h / 2 + 5;
+            const offset = (i % 2 === 0) ? -legOffset : legOffset;
+
+            ctx.beginPath();
+            ctx.moveTo(baseX, baseY);
+            ctx.lineTo(baseX + 15, baseY + 15 + offset);
+            ctx.lineTo(baseX + 20, baseY + 25 + offset);
+            ctx.stroke();
+        }
     }
 
     // Health bar
     ctx.restore();
-    const barWidth = 40;
+    const barWidth = monster.type === 'slime' ? 50 : 40;
     const barHeight = 4;
     const barX = monster.x - camera.x + (w - barWidth) / 2;
     const barY = monster.y - camera.y - 18; // Adjusted for 10px offset
@@ -462,8 +508,8 @@ function drawMonster(monster) {
     ctx.fillRect(barX, barY, barWidth, barHeight);
 
     // Health
-    ctx.fillStyle = '#ff0000';
-    ctx.fillRect(barX, barY, barWidth * (monster.health / MONSTER_MAX_HEALTH), barHeight);
+    ctx.fillStyle = monster.type === 'slime' ? '#4169E1' : '#ff0000';
+    ctx.fillRect(barX, barY, barWidth * (monster.health / monster.maxHealth), barHeight);
 }
 
 // Draw all monsters

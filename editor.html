@@ -65,6 +65,7 @@
         .tool-btn.potion { background: #ff00ff; }
         .tool-btn.message { background: #17a2b8; }
         .tool-btn.monster { background: #2d2d2d; }
+        .tool-btn.slime { background: #4169E1; }
         .tool-btn.start { background: #00ff00; color: black; }
         .tool-btn.end { background: #ff0000; }
         .tool-btn.delete { background: #c0392b; }
@@ -181,6 +182,7 @@
             <button class="tool-btn potion" onclick="selectTool('potion')">Potion (Purple)</button>
             <button class="tool-btn message" onclick="selectTool('message')">Message Block</button>
             <button class="tool-btn monster" onclick="selectTool('monster')">Monster (Spider)</button>
+            <button class="tool-btn slime" onclick="selectTool('slime')">Monster (Slime)</button>
             <button class="tool-btn start" onclick="selectTool('start')">Start Point</button>
             <button class="tool-btn end" onclick="selectTool('end')">End Point</button>
         </div>
@@ -282,6 +284,9 @@
             } else if (tool === 'monster') {
                 document.getElementById('elementWidth').value = 400; // Patrol area width
                 document.getElementById('elementHeight').value = 40;
+            } else if (tool === 'slime') {
+                document.getElementById('elementWidth').value = 400; // Patrol area width
+                document.getElementById('elementHeight').value = 50;
             }
         }
 
@@ -432,15 +437,32 @@
                     elements.push(element);
                 }
             } else if (currentTool === 'monster') {
-                // Place monster with patrol area
-                const patrolWidth = parseInt(document.getElementById('elementWidth').value) || 200;
+                // Place spider monster with patrol area
+                const patrolWidth = parseInt(document.getElementById('elementWidth').value) || 400;
                 const height = parseInt(document.getElementById('elementHeight').value) || 40;
 
                 const element = {
                     type: 'monster',
+                    monsterType: 'spider',
                     x: Math.round(world.x),
                     y: Math.round(world.y),
-                    width: 50, // Monster size
+                    width: 50, // Spider size
+                    height: height,
+                    patrolWidth: patrolWidth // How far it patrols
+                };
+
+                elements.push(element);
+            } else if (currentTool === 'slime') {
+                // Place slime monster with patrol area
+                const patrolWidth = parseInt(document.getElementById('elementWidth').value) || 400;
+                const height = parseInt(document.getElementById('elementHeight').value) || 50;
+
+                const element = {
+                    type: 'monster',
+                    monsterType: 'slime',
+                    x: Math.round(world.x),
+                    y: Math.round(world.y),
+                    width: 60, // Slime size (bigger)
                     height: height,
                     patrolWidth: patrolWidth // How far it patrols
                 };
@@ -686,42 +708,71 @@
 
                 // Draw monster with patrol area
                 if (el.type === 'monster') {
-                    const patrolW = (el.patrolWidth || 200) * zoom;
+                    const patrolW = (el.patrolWidth || 400) * zoom;
                     const patrolX = screen.x - patrolW / 2 + w / 2;
+                    const isSlime = el.monsterType === 'slime';
 
                     // Draw patrol area (dashed line)
-                    ctx.strokeStyle = el === selectedElement ? '#fff' : 'rgba(255, 0, 0, 0.5)';
+                    ctx.strokeStyle = el === selectedElement ? '#fff' : (isSlime ? 'rgba(65, 105, 225, 0.5)' : 'rgba(255, 0, 0, 0.5)');
                     ctx.lineWidth = el === selectedElement ? 3 : 2;
                     ctx.setLineDash([5, 5]);
                     ctx.strokeRect(patrolX, screen.y, patrolW, h);
                     ctx.setLineDash([]);
 
-                    // Draw spider body
-                    ctx.fillStyle = '#2d2d2d';
-                    ctx.beginPath();
-                    ctx.ellipse(screen.x + w/2, screen.y + h/2, w/3, h/3, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Draw eyes
-                    ctx.fillStyle = '#ff0000';
-                    ctx.beginPath();
-                    ctx.arc(screen.x + w*0.65, screen.y + h/2 - 3*zoom, 2*zoom, 0, Math.PI * 2);
-                    ctx.arc(screen.x + w*0.65, screen.y + h/2 + 3*zoom, 2*zoom, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Draw legs
-                    ctx.strokeStyle = '#2d2d2d';
-                    ctx.lineWidth = 2;
-                    for (let i = 0; i < 4; i++) {
-                        const legX = screen.x + w*0.3 + i*4*zoom;
+                    if (isSlime) {
+                        // Draw slime body (blue blob)
+                        ctx.fillStyle = '#4169E1';
                         ctx.beginPath();
-                        ctx.moveTo(legX, screen.y + h/2);
-                        ctx.lineTo(legX - 10*zoom, screen.y + h);
-                        ctx.stroke();
+                        ctx.ellipse(screen.x + w/2, screen.y + h/2, w/2.2, h/2.5, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Highlight
+                        ctx.fillStyle = '#6B8DD6';
                         ctx.beginPath();
-                        ctx.moveTo(legX, screen.y + h/2);
-                        ctx.lineTo(legX + 10*zoom, screen.y + h);
-                        ctx.stroke();
+                        ctx.ellipse(screen.x + w/2 - 5*zoom, screen.y + h/2 - 5*zoom, w/6, h/6, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Eyes
+                        ctx.fillStyle = '#fff';
+                        ctx.beginPath();
+                        ctx.arc(screen.x + w*0.35, screen.y + h/2, 4*zoom, 0, Math.PI * 2);
+                        ctx.arc(screen.x + w*0.65, screen.y + h/2, 4*zoom, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Pupils
+                        ctx.fillStyle = '#000';
+                        ctx.beginPath();
+                        ctx.arc(screen.x + w*0.37, screen.y + h/2 + 1*zoom, 2*zoom, 0, Math.PI * 2);
+                        ctx.arc(screen.x + w*0.67, screen.y + h/2 + 1*zoom, 2*zoom, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        // Draw spider body
+                        ctx.fillStyle = '#2d2d2d';
+                        ctx.beginPath();
+                        ctx.ellipse(screen.x + w/2, screen.y + h/2, w/3, h/3, 0, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Draw eyes
+                        ctx.fillStyle = '#ff0000';
+                        ctx.beginPath();
+                        ctx.arc(screen.x + w*0.65, screen.y + h/2 - 3*zoom, 2*zoom, 0, Math.PI * 2);
+                        ctx.arc(screen.x + w*0.65, screen.y + h/2 + 3*zoom, 2*zoom, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Draw legs
+                        ctx.strokeStyle = '#2d2d2d';
+                        ctx.lineWidth = 2;
+                        for (let i = 0; i < 4; i++) {
+                            const legX = screen.x + w*0.3 + i*4*zoom;
+                            ctx.beginPath();
+                            ctx.moveTo(legX, screen.y + h/2);
+                            ctx.lineTo(legX - 10*zoom, screen.y + h);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(legX, screen.y + h/2);
+                            ctx.lineTo(legX + 10*zoom, screen.y + h);
+                            ctx.stroke();
+                        }
                     }
                 }
 
@@ -868,8 +919,9 @@
                 monsters: monstersData.map(el => ({
                     x: Math.round(el.x),
                     y: Math.round(el.y),
-                    patrolMinX: Math.round(el.x - (el.patrolWidth || 200) / 2),
-                    patrolMaxX: Math.round(el.x + (el.patrolWidth || 200) / 2)
+                    type: el.monsterType || 'spider',
+                    patrolMinX: Math.round(el.x - (el.patrolWidth || 400) / 2),
+                    patrolMaxX: Math.round(el.x + (el.patrolWidth || 400) / 2)
                 }))
             };
 
@@ -969,12 +1021,14 @@
 
                     if (data.monsters) {
                         for (let m of data.monsters) {
+                            const isSlime = m.type === 'slime';
                             elements.push({
                                 type: 'monster',
+                                monsterType: m.type || 'spider',
                                 x: m.x,
                                 y: m.y,
-                                width: 50,
-                                height: 40,
+                                width: isSlime ? 60 : 50,
+                                height: isSlime ? 50 : 40,
                                 patrolWidth: m.patrolMaxX - m.patrolMinX
                             });
                         }
