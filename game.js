@@ -150,8 +150,8 @@ window.addEventListener('keyup', (e) => {
 const player = {
     x: 111,
     y: 2836, // Start in maze
-    width: 64, // Collision box for 2x scaled sprite
-    height: 96,
+    width: 48, // Collision box (1/8 smaller on each side)
+    height: 48, // Collision box (half height, feet area)
     velocityX: 0,
     velocityY: 0,
     onGround: false,
