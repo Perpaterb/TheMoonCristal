@@ -106,6 +106,9 @@ async function initGame() {
 
     levelsLoaded = true;
 
+    // Initialize monsters from level data
+    initMonsters();
+
     // Center camera on start point
     centerCameraOn(currentLevel.playerStart.x, currentLevel.playerStart.y);
 
@@ -173,6 +176,277 @@ const SHOOTING_DURATION = 400; // ms to show shooting animation (enough for all 
 
 // Arrows array
 const arrows = [];
+
+// Monster constants
+const MONSTER_SPEED = 2;
+const MONSTER_JUMP_STRENGTH = -10;
+const MONSTER_DETECTION_RANGE = 600;
+const MONSTER_KNOCKBACK = 8;
+const MONSTER_MAX_HEALTH = 3;
+
+// Active monsters array (populated from level data)
+let monsters = [];
+
+// Initialize monsters from level data
+function initMonsters() {
+    const level = getCurrentLevel();
+    if (!level || !level.monsters) {
+        monsters = [];
+        return;
+    }
+
+    monsters = level.monsters.map(m => ({
+        x: m.x,
+        y: m.y,
+        width: 50,
+        height: 40,
+        velocityX: 0,
+        velocityY: 0,
+        health: MONSTER_MAX_HEALTH,
+        patrolMinX: m.patrolMinX,
+        patrolMaxX: m.patrolMaxX,
+        patrolDir: 1, // 1 = right, -1 = left
+        onGround: false,
+        facingRight: true,
+        isChasing: false,
+        knockbackTimer: 0,
+        animFrame: 0,
+        animTimer: 0
+    }));
+}
+
+// Update all monsters
+function updateMonsters() {
+    const level = getCurrentLevel();
+    if (!level) return;
+
+    for (let i = monsters.length - 1; i >= 0; i--) {
+        const monster = monsters[i];
+
+        // Skip if in knockback
+        if (monster.knockbackTimer > 0) {
+            monster.knockbackTimer--;
+            monster.velocityX *= 0.8; // Friction during knockback
+        } else {
+            // Check distance to player
+            const dx = player.x - monster.x;
+            const dy = player.y - monster.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < MONSTER_DETECTION_RANGE) {
+                // Chase player
+                monster.isChasing = true;
+                if (dx > 10) {
+                    monster.velocityX = MONSTER_SPEED;
+                    monster.facingRight = true;
+                } else if (dx < -10) {
+                    monster.velocityX = -MONSTER_SPEED;
+                    monster.facingRight = false;
+                } else {
+                    monster.velocityX = 0;
+                }
+
+                // Jump if player is above and monster is on ground
+                if (dy < -50 && monster.onGround) {
+                    monster.velocityY = MONSTER_JUMP_STRENGTH;
+                    monster.onGround = false;
+                }
+            } else {
+                // Patrol mode
+                monster.isChasing = false;
+                monster.velocityX = MONSTER_SPEED * monster.patrolDir;
+                monster.facingRight = monster.patrolDir > 0;
+
+                // Reverse direction at patrol bounds
+                if (monster.x <= monster.patrolMinX) {
+                    monster.patrolDir = 1;
+                } else if (monster.x + monster.width >= monster.patrolMaxX) {
+                    monster.patrolDir = -1;
+                }
+            }
+        }
+
+        // Apply gravity
+        monster.velocityY += GRAVITY;
+
+        // Update position
+        monster.x += monster.velocityX;
+        monster.y += monster.velocityY;
+
+        // Platform collision
+        monster.onGround = false;
+        for (let platform of level.platforms) {
+            if (checkCollision(monster, platform)) {
+                if (platform.solid) {
+                    const prevBottom = monster.y + monster.height - monster.velocityY;
+
+                    if (monster.velocityY > 0 && prevBottom <= platform.y) {
+                        monster.y = platform.y - monster.height;
+                        monster.velocityY = 0;
+                        monster.onGround = true;
+                    } else if (monster.velocityY < 0) {
+                        monster.y = platform.y + platform.height;
+                        monster.velocityY = 0;
+                    }
+                } else {
+                    // Jump-through platform
+                    if (monster.velocityY > 0 && monster.y + monster.height - monster.velocityY <= platform.y + 5) {
+                        monster.y = platform.y - monster.height;
+                        monster.velocityY = 0;
+                        monster.onGround = true;
+                    }
+                }
+            }
+        }
+
+        // Keep in level bounds
+        if (monster.x < 0) monster.x = 0;
+        if (monster.x + monster.width > level.width) monster.x = level.width - monster.width;
+        if (monster.y + monster.height > level.height) {
+            monster.y = level.height - monster.height;
+            monster.velocityY = 0;
+            monster.onGround = true;
+        }
+
+        // Check collision with player (damage player)
+        if (checkCollision(monster, player)) {
+            damagePlayer();
+        }
+
+        // Update animation
+        monster.animTimer++;
+        if (monster.animTimer > 10) {
+            monster.animTimer = 0;
+            monster.animFrame = (monster.animFrame + 1) % 4;
+        }
+    }
+}
+
+// Check arrow hits on monsters
+function checkArrowMonsterCollisions() {
+    for (let i = arrows.length - 1; i >= 0; i--) {
+        const arrow = arrows[i];
+
+        for (let j = monsters.length - 1; j >= 0; j--) {
+            const monster = monsters[j];
+
+            if (checkCollision(arrow, monster)) {
+                // Damage monster
+                monster.health--;
+
+                // Knockback
+                monster.velocityX = arrow.direction * MONSTER_KNOCKBACK;
+                monster.velocityY = -3;
+                monster.knockbackTimer = 15;
+
+                // Remove arrow
+                arrows.splice(i, 1);
+
+                // Remove monster if dead
+                if (monster.health <= 0) {
+                    monsters.splice(j, 1);
+                }
+
+                break;
+            }
+        }
+    }
+}
+
+// Draw spider monster
+function drawMonster(monster) {
+    const mx = monster.x - camera.x;
+    const my = monster.y - camera.y;
+    const w = monster.width;
+    const h = monster.height;
+
+    ctx.save();
+
+    // Flip if facing left
+    if (!monster.facingRight) {
+        ctx.translate(mx + w, my);
+        ctx.scale(-1, 1);
+        ctx.translate(0, 0);
+    } else {
+        ctx.translate(mx, my);
+    }
+
+    // Flash red if recently hit
+    if (monster.knockbackTimer > 0) {
+        ctx.globalAlpha = 0.7;
+    }
+
+    // Spider body (oval)
+    ctx.fillStyle = '#2d2d2d';
+    ctx.beginPath();
+    ctx.ellipse(w / 2, h / 2 + 5, w / 3, h / 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Spider head
+    ctx.beginPath();
+    ctx.ellipse(w * 0.75, h / 2, w / 5, h / 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes (red when chasing)
+    ctx.fillStyle = monster.isChasing ? '#ff0000' : '#880000';
+    ctx.beginPath();
+    ctx.arc(w * 0.8, h / 2 - 3, 3, 0, Math.PI * 2);
+    ctx.arc(w * 0.8, h / 2 + 3, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Legs (animated)
+    ctx.strokeStyle = '#2d2d2d';
+    ctx.lineWidth = 3;
+    const legOffset = Math.sin(monster.animFrame * Math.PI / 2) * 3;
+
+    // Left side legs
+    for (let i = 0; i < 4; i++) {
+        const baseX = w * 0.3 + i * 5;
+        const baseY = h / 2 + 5;
+        const offset = (i % 2 === 0) ? legOffset : -legOffset;
+
+        ctx.beginPath();
+        ctx.moveTo(baseX, baseY);
+        ctx.lineTo(baseX - 15, baseY + 15 + offset);
+        ctx.lineTo(baseX - 20, baseY + 25 + offset);
+        ctx.stroke();
+    }
+
+    // Right side legs
+    for (let i = 0; i < 4; i++) {
+        const baseX = w * 0.3 + i * 5;
+        const baseY = h / 2 + 5;
+        const offset = (i % 2 === 0) ? -legOffset : legOffset;
+
+        ctx.beginPath();
+        ctx.moveTo(baseX, baseY);
+        ctx.lineTo(baseX + 15, baseY + 15 + offset);
+        ctx.lineTo(baseX + 20, baseY + 25 + offset);
+        ctx.stroke();
+    }
+
+    // Health bar
+    ctx.restore();
+    const barWidth = 40;
+    const barHeight = 4;
+    const barX = monster.x - camera.x + (w - barWidth) / 2;
+    const barY = monster.y - camera.y - 8;
+
+    // Background
+    ctx.fillStyle = '#333';
+    ctx.fillRect(barX, barY, barWidth, barHeight);
+
+    // Health
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(barX, barY, barWidth * (monster.health / MONSTER_MAX_HEALTH), barHeight);
+}
+
+// Draw all monsters
+function drawMonsters() {
+    for (let monster of monsters) {
+        drawMonster(monster);
+    }
+}
 
 // Update camera to follow player (keep player in middle 1/3)
 function updateCamera() {
@@ -302,6 +576,9 @@ async function restartGame() {
     player.shootingTimer = 0;
     player.wasInAir = false;
     arrows.length = 0;
+
+    // Reset monsters
+    initMonsters();
 
     // Center camera on start point
     centerCameraOn(currentLevel.playerStart.x, currentLevel.playerStart.y);
@@ -841,6 +1118,8 @@ function gameLoop() {
 
         updatePlayer();
         updateArrows();
+        updateMonsters();
+        checkArrowMonsterCollisions();
         updateCamera();
     }
 
@@ -849,6 +1128,7 @@ function gameLoop() {
     drawSpikes();
     drawHealthPotions();
     drawEndPoint();
+    drawMonsters();
     drawPlayer();
     drawArrows();
     drawHearts();
