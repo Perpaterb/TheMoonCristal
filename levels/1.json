@@ -2,12 +2,12 @@
   "width": 10000,
   "height": 6000,
   "playerStart": {
-    "x": 4206,
-    "y": 5128
+    "x": 243,
+    "y": 2951
   },
   "endPoint": {
-    "x": 3467,
-    "y": 5970,
+    "x": 3362,
+    "y": 5866,
     "width": 30,
     "height": 30
   },
@@ -1131,6 +1131,38 @@
       "height": 20,
       "color": "#DAA520",
       "solid": false
+    },
+    {
+      "x": 4439,
+      "y": 6000,
+      "width": 200,
+      "height": 30,
+      "color": "#8B4513",
+      "solid": true
+    },
+    {
+      "x": 4442,
+      "y": 5961,
+      "width": 200,
+      "height": 30,
+      "color": "#8B4513",
+      "solid": true
+    },
+    {
+      "x": 4411,
+      "y": 4935,
+      "width": 231,
+      "height": 1063,
+      "color": "#8B4513",
+      "solid": true
+    },
+    {
+      "x": 3572,
+      "y": 5722,
+      "width": 56,
+      "height": 298,
+      "color": "#8B4513",
+      "solid": true
     }
   ],
   "spikes": [
@@ -1899,6 +1931,22 @@
       "width": 15,
       "height": 15,
       "collected": false
+    }
+  ],
+  "messageBlocks": [
+    {
+      "x": 4643,
+      "y": 5025,
+      "width": 622,
+      "height": 966,
+      "message": "For trying to cheat, you must not complete."
+    },
+    {
+      "x": -3,
+      "y": 2905,
+      "width": 322,
+      "height": 117,
+      "message": "do not cheat"
     }
   ]
 }

@@ -20,7 +20,7 @@ const ARROW_DELAY = 200; // 0.2 second delay before arrow fires
 let gameOver = false;
 let levelComplete = false;
 let health = 3;
-let maxHealth = 3;
+const maxHealth = 5; // Fixed max hearts
 let invincible = false;
 let invincibleTimer = 0;
 let activeMessage = null; // Currently displayed message from message block
@@ -279,7 +279,6 @@ async function restartGame() {
     gameOver = false;
     levelComplete = false;
     health = 3;
-    maxHealth = 3;
     invincible = false;
     invincibleTimer = 0;
 
@@ -447,12 +446,13 @@ function updatePlayer() {
         }
     }
 
-    // Check health potion collision
+    // Check health potion collision - only pick up if not at full health
     for (let potion of level.healthPotions) {
         if (!potion.collected && checkCollision(player, potion)) {
-            potion.collected = true;
-            maxHealth++;
-            health++;
+            if (health < maxHealth) {
+                potion.collected = true;
+                health++;
+            }
         }
     }
 
