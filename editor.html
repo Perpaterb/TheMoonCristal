@@ -63,6 +63,7 @@
         .tool-btn.ledge { background: #DAA520; }
         .tool-btn.spike { background: #666666; }
         .tool-btn.potion { background: #ff00ff; }
+        .tool-btn.message { background: #17a2b8; }
         .tool-btn.start { background: #00ff00; color: black; }
         .tool-btn.end { background: #ff0000; }
         .tool-btn.delete { background: #c0392b; }
@@ -177,6 +178,7 @@
             <button class="tool-btn ledge" onclick="selectTool('ledge')">Ledge (Yellow)</button>
             <button class="tool-btn spike" onclick="selectTool('spike')">Spike (Black)</button>
             <button class="tool-btn potion" onclick="selectTool('potion')">Potion (Purple)</button>
+            <button class="tool-btn message" onclick="selectTool('message')">Message Block</button>
             <button class="tool-btn start" onclick="selectTool('start')">Start Point</button>
             <button class="tool-btn end" onclick="selectTool('end')">End Point</button>
         </div>
@@ -272,6 +274,9 @@
             } else if (tool === 'potion') {
                 document.getElementById('elementWidth').value = 15;
                 document.getElementById('elementHeight').value = 15;
+            } else if (tool === 'message') {
+                document.getElementById('elementWidth').value = 100;
+                document.getElementById('elementHeight').value = 100;
             }
         }
 
@@ -403,6 +408,24 @@
                 startPoint = { x: world.x, y: world.y };
             } else if (currentTool === 'end') {
                 endPoint = { x: world.x, y: world.y };
+            } else if (currentTool === 'message') {
+                // Place message block with prompt for text
+                const message = prompt('Enter message text:');
+                if (message) {
+                    const width = parseInt(document.getElementById('elementWidth').value) || 100;
+                    const height = parseInt(document.getElementById('elementHeight').value) || 100;
+
+                    const element = {
+                        type: 'message',
+                        x: Math.round(world.x - width / 2),
+                        y: Math.round(world.y - height / 2),
+                        width: width,
+                        height: height,
+                        message: message
+                    };
+
+                    elements.push(element);
+                }
             } else {
                 // Place new element
                 const width = parseInt(document.getElementById('elementWidth').value) || 100;
@@ -517,6 +540,29 @@
             resizeHandle = null;
         });
 
+        // Double-click to edit message block text
+        canvas.addEventListener('dblclick', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+            const world = screenToWorld(sx, sy);
+
+            // Find message block under cursor
+            for (let i = elements.length - 1; i >= 0; i--) {
+                const el = elements[i];
+                if (el.type === 'message' &&
+                    world.x >= el.x && world.x <= el.x + el.width &&
+                    world.y >= el.y && world.y <= el.y + el.height) {
+                    const newMessage = prompt('Edit message text:', el.message);
+                    if (newMessage !== null) {
+                        el.message = newMessage;
+                        draw();
+                    }
+                    break;
+                }
+            }
+        });
+
         canvas.addEventListener('mouseleave', () => {
             isDragging = false;
             isPanning = false;
@@ -595,6 +641,7 @@
                 else if (el.type === 'ledge') ctx.fillStyle = '#DAA520';
                 else if (el.type === 'spike') ctx.fillStyle = '#666666';
                 else if (el.type === 'potion') ctx.fillStyle = '#ff00ff';
+                else if (el.type === 'message') ctx.fillStyle = 'rgba(23, 162, 184, 0.5)';
 
                 ctx.fillRect(screen.x, screen.y, w, h);
 
@@ -602,6 +649,16 @@
                 ctx.strokeStyle = el === selectedElement ? '#fff' : '#000';
                 ctx.lineWidth = el === selectedElement ? 3 : 1;
                 ctx.strokeRect(screen.x, screen.y, w, h);
+
+                // Draw message text preview for message blocks
+                if (el.type === 'message' && el.message) {
+                    ctx.fillStyle = '#fff';
+                    ctx.font = `${Math.max(10, 12 * zoom)}px monospace`;
+                    ctx.textAlign = 'center';
+                    const text = el.message.length > 20 ? el.message.substring(0, 17) + '...' : el.message;
+                    ctx.fillText(text, screen.x + w/2, screen.y + h/2 + 4);
+                    ctx.textAlign = 'left';
+                }
 
                 // Draw resize handles for selected element
                 if (el === selectedElement) {
@@ -692,6 +749,7 @@
             const platforms = elements.filter(e => e.type === 'platform' || e.type === 'box' || e.type === 'ledge');
             const spikes = elements.filter(e => e.type === 'spike');
             const potions = elements.filter(e => e.type === 'potion');
+            const messages = elements.filter(e => e.type === 'message');
 
             const levelData = {
                 width: levelWidth,
@@ -733,6 +791,13 @@
                     width: el.width,
                     height: el.height,
                     collected: false
+                })),
+                messageBlocks: messages.map(el => ({
+                    x: Math.round(el.x),
+                    y: Math.round(el.y),
+                    width: el.width,
+                    height: el.height,
+                    message: el.message
                 }))
             };
 
@@ -813,6 +878,19 @@
                                 y: p.y,
                                 width: p.width,
                                 height: p.height
+                            });
+                        }
+                    }
+
+                    if (data.messageBlocks) {
+                        for (let m of data.messageBlocks) {
+                            elements.push({
+                                type: 'message',
+                                x: m.x,
+                                y: m.y,
+                                width: m.width,
+                                height: m.height,
+                                message: m.message
                             });
                         }
                     }

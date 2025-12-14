@@ -2,8 +2,8 @@
   "width": 10000,
   "height": 6000,
   "playerStart": {
-    "x": 124,
-    "y": 2914
+    "x": 4206,
+    "y": 5128
   },
   "endPoint": {
     "x": 3467,
@@ -453,8 +453,8 @@
       "solid": true
     },
     {
-      "x": 2749,
-      "y": 4746,
+      "x": 2739,
+      "y": 4733,
       "width": 1016,
       "height": 30,
       "color": "#8B4513",
@@ -782,17 +782,9 @@
     },
     {
       "x": 3689,
-      "y": 5031,
+      "y": 4858,
       "width": 100,
-      "height": 100,
-      "color": "#4169E1",
-      "solid": true
-    },
-    {
-      "x": 3689,
-      "y": 4826,
-      "width": 100,
-      "height": 244,
+      "height": 212,
       "color": "#4169E1",
       "solid": true
     },
@@ -829,26 +821,10 @@
       "solid": false
     },
     {
-      "x": 3603,
-      "y": 4792,
-      "width": 150,
-      "height": 20,
-      "color": "#DAA520",
-      "solid": false
-    },
-    {
-      "x": 3761,
-      "y": 4828,
-      "width": 100,
-      "height": 100,
-      "color": "#4169E1",
-      "solid": true
-    },
-    {
-      "x": 3831,
-      "y": 4830,
-      "width": 100,
-      "height": 100,
+      "x": 3783,
+      "y": 4856,
+      "width": 161,
+      "height": 75,
       "color": "#4169E1",
       "solid": true
     },
@@ -997,14 +973,6 @@
       "solid": false
     },
     {
-      "x": 3844,
-      "y": 4843,
-      "width": 200,
-      "height": 30,
-      "color": "#8B4513",
-      "solid": true
-    },
-    {
       "x": 3944,
       "y": 4861,
       "width": 200,
@@ -1147,6 +1115,22 @@
       "height": 30,
       "color": "#8B4513",
       "solid": true
+    },
+    {
+      "x": 3838,
+      "y": 5135,
+      "width": 150,
+      "height": 20,
+      "color": "#DAA520",
+      "solid": false
+    },
+    {
+      "x": 3721,
+      "y": 5187,
+      "width": 150,
+      "height": 20,
+      "color": "#DAA520",
+      "solid": false
     }
   ],
   "spikes": [
@@ -1905,6 +1889,13 @@
     {
       "x": 4694,
       "y": 4902,
+      "width": 15,
+      "height": 15,
+      "collected": false
+    },
+    {
+      "x": 3963,
+      "y": 5064,
       "width": 15,
       "height": 15,
       "collected": false

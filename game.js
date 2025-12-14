@@ -23,6 +23,7 @@ let health = 3;
 let maxHealth = 3;
 let invincible = false;
 let invincibleTimer = 0;
+let activeMessage = null; // Currently displayed message from message block
 
 // Sprite sheets
 const sprites = {
@@ -151,7 +152,7 @@ const player = {
     x: 111,
     y: 2836, // Start in maze
     width: 48, // Collision box (1/8 smaller on each side)
-    height: 48, // Collision box (half height, feet area)
+    height: 56, // Collision box (half height, feet area)
     velocityX: 0,
     velocityY: 0,
     onGround: false,
@@ -234,6 +235,27 @@ function checkEndPoint() {
     if (level.endPoint && checkCollision(player, level.endPoint)) {
         levelComplete = true;
     }
+}
+
+// Check for message blocks - display message when player touches one
+function checkMessageBlocks() {
+    const level = getCurrentLevel();
+
+    if (!level.messageBlocks) {
+        activeMessage = null;
+        return;
+    }
+
+    // Check if player is inside any message block
+    for (let block of level.messageBlocks) {
+        if (checkCollision(player, block)) {
+            activeMessage = block.message;
+            return;
+        }
+    }
+
+    // Not in any message block
+    activeMessage = null;
 }
 
 // Shoot arrow function
@@ -440,6 +462,9 @@ function updatePlayer() {
     // Check for end point (level completion)
     checkEndPoint();
 
+    // Check for message blocks
+    checkMessageBlocks();
+
     // Update animation state
     const currentTime = Date.now();
 
@@ -576,6 +601,31 @@ function drawPlayer() {
     }
 
     ctx.globalAlpha = 1.0;
+}
+
+// Draw active message from message block
+function drawMessage() {
+    if (!activeMessage) return;
+
+    // Semi-transparent background box at top of screen
+    const padding = 20;
+    const boxHeight = 60;
+    const boxY = 50;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctx.fillRect(padding, boxY, canvas.width - padding * 2, boxHeight);
+
+    // White border
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(padding, boxY, canvas.width - padding * 2, boxHeight);
+
+    // Message text (centered)
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '20px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(activeMessage, canvas.width / 2, boxY + boxHeight / 2 + 7);
+    ctx.textAlign = 'left';
 }
 
 // Draw hearts
@@ -802,6 +852,7 @@ function gameLoop() {
     drawPlayer();
     drawArrows();
     drawHearts();
+    drawMessage();
 
     // Draw game over screen if game is over
     if (gameOver) {
