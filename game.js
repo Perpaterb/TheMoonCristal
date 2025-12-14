@@ -562,7 +562,7 @@ function shootArrow() {
     const direction = player.facingRight ? 1 : -1;
     const arrow = {
         x: player.facingRight ? player.x + player.width : player.x - 15,
-        y: player.y + 6, // Shoot from chest height
+        y: player.y + 16, // Shoot from chest height
         velocityX: ARROW_SPEED * direction,
         velocityY: -3, // Initial upward velocity for arc
         width: 15,
